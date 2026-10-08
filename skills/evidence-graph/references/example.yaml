@@ -1,0 +1,115 @@
+goal: 订单服务把 HTTP 客户端库从 2.x 升到 3.x 后，下单接口 P99 延迟从 120 ms 升到 260 ms
+created: 2026-10-08T10:00
+main_line: H2
+nodes:
+  F1:
+    kind: fact
+    claim: 下单接口的 P99 统计包含获取连接的等待时间
+    status: confirmed
+    criterion: 读到计时起点那一行，确认它在获取连接的代码前面
+    depends_on: []
+    evidence:
+    - metrics/middleware.py:48 start = time.monotonic()，第 49 行调用 pool.acquire()
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    - at: 2026-10-08T10:00
+      status: confirmed
+      note: ''
+  F2:
+    kind: fact
+    claim: 运行时连接池上限是 10，配置文件中的 50 没有生效
+    status: confirmed
+    criterion: 以运行时接口返回的值为准，配置文件只作对照
+    depends_on: []
+    evidence:
+    - 'curl -s localhost:8080/debug/config -> http_pool.max_size: 10；config/app.yaml:22 max_size: 50'
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    - at: 2026-10-08T10:00
+      status: confirmed
+      note: ''
+  E1:
+    kind: experiment
+    claim: 关闭 DNS 缓存定时刷新后压测下单场景 5 轮
+    status: done
+    criterion: ''
+    depends_on: []
+    evidence:
+    - 5 轮 P99 在 250~270 ms，report/loadtest-0412.json p99_ms=262
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    - at: 2026-10-08T10:00
+      status: done
+      note: ''
+    command: loadtest run --scenario checkout --rounds 5 --env dns_refresh=off
+  H1:
+    kind: hypothesis
+    claim: 3.x 的 DNS 缓存定时刷新阻塞请求
+    status: refuted
+    criterion: E1 关闭刷新后 P99 回到 130 ms 以内
+    depends_on:
+    - F1
+    - E1
+    evidence:
+    - E1：关闭刷新后 P99 为 262 ms，DNS 刷新与延迟升高无关
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    - at: 2026-10-08T10:00
+      status: refuted
+      note: ''
+  E2:
+    kind: experiment
+    claim: 连接池上限设为 50 后压测下单与搜索场景各 5 轮
+    status: open
+    criterion: ''
+    depends_on:
+    - F2
+    evidence: []
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    command: loadtest run --scenario checkout,search --rounds 5 --env http_pool.max_size=50
+  H2:
+    kind: hypothesis
+    claim: 连接池上限 10 过小，高峰时请求排队等待连接
+    status: open
+    criterion: E2：下单场景 5 轮 P99 均在 130 ms 以内，且搜索场景 P99 不升高
+    depends_on:
+    - F2
+    - E2
+    evidence: []
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+  H3:
+    kind: hypothesis
+    claim: 生产网络的偶发重传放大了尾延迟，压测环境复现不出
+    status: blocked
+    criterion: ''
+    depends_on:
+    - F1
+    evidence: []
+    history:
+    - at: 2026-10-08T10:00
+      status: open
+      note: 新建
+    - at: 2026-10-08T10:00
+      status: blocked
+      note: ''
+    needs: 生产环境的抓包文件，压测环境没有丢包注入
+switches:
+- at: 2026-10-08T10:00
+  from: null
+  from_status: null
+  to: H2
+  reason: H1 已被 E1 证伪；H3 缺生产抓包受阻；H2 有 F2 支撑，可在压测环境验证
