@@ -4,6 +4,7 @@
 CI 里直接 `python3 -m unittest scripts/test_graph.py` 即可。
 """
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -228,6 +229,139 @@ class GraphTestCase(unittest.TestCase):
         self.assertIn("缺 graphviz", err)
         with open(html_path, encoding="utf-8") as fh:
             self.assertEqual(fh.read(), "stale")
+
+
+# SKILL.md 与本文件的相对位置：scripts/ 的上一级
+SKILL_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "SKILL.md")
+
+
+def skill_snippet(start: str, end: str) -> str:
+    """从 SKILL.md 取出以 start 开头、到首个含 end 的行为止的连续行，测试的就是文档里的原文。"""
+    with open(SKILL_MD, encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+    i = next(k for k, line in enumerate(lines) if line.startswith(start))
+    j = next(k for k in range(i, len(lines)) if end in lines[k])
+    return "\n".join(lines[i:j + 1]) + "\n"
+
+
+class SkillSnippetTestCase(unittest.TestCase):
+    """SKILL.md 里两段 shell 的行为：graph.py 路径解析与找图。依赖 bash、git、find。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def run_snippet(self, script: str, cwd: str | None = None, env: dict | None = None):
+        path = os.path.join(self.tmp, "snippet.sh")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(script)
+        return subprocess.run(["bash", path], cwd=cwd, env=env, capture_output=True, text=True)
+
+    # ---------- graph.py 路径解析 ----------
+
+    def resolve(self, home: str, claude_output: str | None, skill_dir: str | None = None) -> str:
+        """在伪造的 HOME 与 claude 命令下运行路径解析段，返回打印出的 G。
+
+        claude_output 为 None 时伪造的 claude 以退出码 127 结束，模拟本机没有 claude 命令。
+        """
+        bindir = os.path.join(self.tmp, "bin")
+        os.makedirs(bindir, exist_ok=True)
+        fake = os.path.join(bindir, "claude")
+        with open(fake, "w", encoding="utf-8") as fh:
+            if claude_output is None:
+                fh.write("#!/bin/sh\nexit 127\n")
+            else:
+                fh.write("#!/bin/sh\ncat <<'EOF'\n" + claude_output + "\nEOF\n")
+        os.chmod(fake, 0o755)
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_SKILL_DIR"}
+        env["HOME"] = home
+        env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
+        if skill_dir is not None:
+            env["CLAUDE_SKILL_DIR"] = skill_dir
+        script = skill_snippet('G="${CLAUDE_SKILL_DIR}', "未找到 graph.py") + 'echo "G=[$G]"\n'
+        out = self.run_snippet(script, env=env).stdout
+        return out[out.rindex("G=[") + 3:out.rindex("]")]
+
+    def make_copies(self) -> tuple[str, str, str]:
+        """伪造 HOME：一份旧缓存，一份同步副本；同步副本的 mtime 置为 1970 年，与 claude.ai 同步下来的文件一致。"""
+        home = os.path.join(self.tmp, "home")
+        stale = os.path.join(home, ".claude/plugins/cache/evidence-graph/evidence-graph/aaa")
+        synced = os.path.join(home, ".claude/plugins/synced/acct/evidence-graph~g2")
+        for root in (stale, synced):
+            d = os.path.join(root, "skills/evidence-graph/scripts")
+            os.makedirs(d)
+            open(os.path.join(d, "graph.py"), "w").close()
+        os.utime(os.path.join(synced, "skills/evidence-graph/scripts/graph.py"), (0, 0))
+        return home, stale, synced
+
+    def test_resolve_uses_substituted_skill_dir(self):
+        home, _, _ = self.make_copies()
+        skill = os.path.join(self.tmp, "skill")
+        os.makedirs(os.path.join(skill, "scripts"))
+        open(os.path.join(skill, "scripts/graph.py"), "w").close()
+        self.assertEqual(self.resolve(home, None, skill_dir=skill), skill + "/scripts/graph.py")
+
+    def test_resolve_prefers_enabled_plugin_over_stale_cache(self):
+        home, _, synced = self.make_copies()
+        listing = json.dumps([
+            {"id": "other@x", "enabled": True, "installPath": "/nowhere"},
+            {"id": "evidence-graph@synced", "enabled": True, "installPath": synced},
+        ])
+        self.assertEqual(self.resolve(home, listing), synced + "/skills/evidence-graph/scripts/graph.py")
+
+    def test_resolve_searches_when_claude_is_unavailable(self):
+        home, stale, synced = self.make_copies()
+        g = self.resolve(home, None)
+        self.assertIn(g, (stale + "/skills/evidence-graph/scripts/graph.py",
+                          synced + "/skills/evidence-graph/scripts/graph.py"))
+
+    def test_resolve_reports_missing_install(self):
+        home = os.path.join(self.tmp, "empty-home")
+        os.makedirs(home)
+        self.assertEqual(self.resolve(home, "[]"), "")
+
+    # ---------- 找图 ----------
+
+    def find_graphs(self, cwd: str) -> list[str]:
+        script = skill_snippet("R=$(git rev-parse", "python3 -c")
+        out = self.run_snippet(script, cwd=cwd).stdout
+        return [os.path.basename(line) for line in out.splitlines() if line]
+
+    def git(self, *args: str, cwd: str) -> None:
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                       cwd=cwd, check=True, capture_output=True)
+
+    def test_find_covers_worktrees_and_dedups_symlinks(self):
+        repo = os.path.join(self.tmp, "repo")
+        os.makedirs(os.path.join(repo, "docs/evidence-graph"))
+        self.git("init", "-q", "-b", "main", cwd=repo)
+        self.git("commit", "-q", "--allow-empty", "-m", "init", cwd=repo)
+        open(os.path.join(repo, "docs/evidence-graph/a-evidence-graph.yaml"), "w").close()
+        sib = os.path.join(self.tmp, "sib")
+        self.git("worktree", "add", "-q", sib, "-b", "sib", cwd=repo)
+        os.makedirs(os.path.join(sib, "docs/evidence-graph"))
+        open(os.path.join(sib, "docs/evidence-graph/b-evidence-graph.yaml"), "w").close()
+        os.makedirs(os.path.join(repo, "node_modules/x"))
+        open(os.path.join(repo, "node_modules/x/skip-evidence-graph.yaml"), "w").close()
+        # 两条软链指向同一张图，结果里只出现一次
+        other = os.path.join(self.tmp, "other")
+        os.makedirs(other)
+        open(os.path.join(other, "c-evidence-graph.yaml"), "w").close()
+        os.symlink(other, os.path.join(repo, "link1"))
+        os.makedirs(os.path.join(repo, "sub/dir"))
+        os.symlink(other, os.path.join(repo, "sub/link2"))
+        want = ["a-evidence-graph.yaml", "b-evidence-graph.yaml", "c-evidence-graph.yaml"]
+        self.assertEqual(sorted(self.find_graphs(os.path.join(repo, "sub/dir"))), want)
+        # 从兄弟 worktree 调用同样覆盖主仓库目录，经它的软链可达的 c 也在内
+        self.assertEqual(sorted(self.find_graphs(sib)), want)
+
+    def test_find_outside_git_searches_current_directory(self):
+        plain = os.path.join(self.tmp, "plain/docs/evidence-graph")
+        os.makedirs(plain)
+        open(os.path.join(plain, "x-evidence-graph.yaml"), "w").close()
+        self.assertEqual(self.find_graphs(os.path.join(self.tmp, "plain")), ["x-evidence-graph.yaml"])
 
 
 if __name__ == "__main__":

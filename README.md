@@ -72,7 +72,7 @@ python3 -m unittest scripts/test_graph.py
 你随时可以自己看图：
 
 ```bash
-G=$(find ~/.claude/plugins ~/.claude/skills -path '*/evidence-graph/scripts/graph.py' -exec ls -t {} + 2>/dev/null | head -1)
+G="$(claude plugin list --json | python3 -c 'import json, sys; print(next(p["installPath"] for p in json.load(sys.stdin) if p["id"].startswith("evidence-graph@") and p["enabled"]))')/skills/evidence-graph/scripts/graph.py"
 Y=docs/evidence-graph/2026-10-08-checkout-latency-evidence-graph.yaml
 python3 $G $Y tree                 # 文本大纲
 python3 $G $Y ready --main         # 下一步该干什么
