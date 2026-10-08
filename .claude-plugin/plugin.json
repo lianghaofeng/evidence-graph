@@ -1,0 +1,7 @@
+{
+  "name": "evidence-graph",
+  "description": "排查用证据图：把事实、假设、实验立成落盘的依赖图，由脚本校验状态与证据，跨会话续查",
+  "author": { "name": "lianghaofeng", "url": "https://github.com/lianghaofeng" },
+  "license": "MIT",
+  "keywords": ["debugging", "root-cause-analysis", "investigation"]
+}
