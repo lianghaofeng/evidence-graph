@@ -25,7 +25,7 @@ G="${CLAUDE_SKILL_DIR}/scripts/graph.py"
 Y=<图的路径，见「图的位置」>
 ```
 
-`G` 取 skill 所在目录；占位符未被替换时，向 Claude Code 查询已启用的 evidence-graph 插件的安装目录；两者都拿不到时按文件名搜索，跳过 `.trash` 下的旧副本。不写某台机器上的固定路径。
+`G` 取 skill 所在目录；占位符未被替换时，向 Claude Code 查询已启用的 evidence-graph 插件的安装目录；两者都拿不到时按文件名搜索，跳过 `.trash` 下已移除的副本。不写某台机器上的固定路径。
 
 ## 图的位置
 
@@ -53,8 +53,8 @@ R=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 | 想重提已证伪的 | `set <ID> --status open --new-evidence "…"`，没有新证据就不许重开 |
 | 每次改图后 | `check`。不通过就先修图，修好才能继续 |
 | 派子代理 | 把节点的 claim 与 criterion 原样给它，让它只回报证据。写图的只有主会话 |
-| 压缩 / 换会话后 | 第一件事 `tree`。摘要与图冲突时以图为准，图上的结论带证据 |
-| 收尾 | `tree --status confirmed` 摘出结论；`render --focus --out <日期>-<主题短名>-graph-focus.png` 与 `render --collapse-refuted --out <日期>-<主题短名>-graph.png` 出静态图，写进图所在目录的报告。HTML 视图随改图自动重新生成，不用另外刷 |
+| 压缩 / 换会话后 | 第一件事 `tree`。摘要与图冲突时以图为准，图上的结论带证据；`tree` 显示「已收尾」表示这次排查已经结束 |
+| 收尾 | `tree --status confirmed` 摘出结论；`close --reason "<一句话结论>"` 收尾，收尾后 `check` 放行已到终态的主线；`render --focus --out <日期>-<主题短名>-graph-focus.png` 与 `render --collapse-refuted --out <日期>-<主题短名>-graph.png` 出静态图，写进图所在目录的报告。HTML 视图随改图自动重新生成，不用另外刷。同一问题再次出现时，`add` 新节点后 `switch` 过去即恢复对主线的检查 |
 
 节点编号约定：F 事实、H 假设、E 实验，加序号。ID 一旦立了不改。
 

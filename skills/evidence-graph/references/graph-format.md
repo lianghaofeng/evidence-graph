@@ -9,6 +9,7 @@
 | `main_line` | 当前主线节点编号，只能由 `switch` 改 |
 | `nodes` | 节点表，键是编号 |
 | `switches` | 换线记录，每条含 `at`、`from`、`from_status`、`to`、`reason` |
+| `closed` | 收尾记录，含 `at`、`reason`（一句话结论）；由 `close` 写入，`switch` 清除；没有收尾时不出现 |
 
 ## 节点字段
 
@@ -49,10 +50,10 @@
 | R1 | 依赖无环 | A 依赖 B、B 又依赖 A |
 | R2 | confirmed / done / refuted 必有 evidence；blocked 必有 needs | 凭印象判状态 |
 | R3 | 待查节点不能依赖已证伪节点 | 前提被推翻了，建在它上面的假设还挂着 |
-| R4 | 主线指向待查节点；主线与最后一次换线的 `to` 一致；换线时 `from` 已到终态；换线有 reason | 主线到终态没换线；绕过 switch 手改 main_line；没走到底就换方向 |
+| R4 | 主线指向待查节点（已用 `close` 收尾的图除外）；主线与最后一次换线的 `to` 一致；换线时 `from` 已到终态；换线有 reason | 主线到终态既没换线也没收尾；绕过 switch 手改 main_line；没走到底就换方向 |
 | R5 | 曾被证伪的节点重开必须带新证据 | 过几轮又把老假设当新想法提出来 |
 
-改图命令（add / set / switch）保存后会顺手跑一遍 check，错误打到 stderr，命令照常完成，因为有些中间态是合法过渡（刚把事实判证伪，依赖它的假设下一步才跟着判）。单独跑 `check` 时不通过退出码为 1。
+改图命令（add / set / switch / close）保存后会顺手跑一遍 check，错误打到 stderr，命令照常完成，因为有些中间态是合法过渡（刚把事实判证伪，依赖它的假设下一步才跟着判）。单独跑 `check` 时不通过退出码为 1。
 
 ## 投影
 

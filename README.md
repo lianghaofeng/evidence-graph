@@ -109,7 +109,7 @@ python3 $G $Y viewer --watch         # 手改 YAML 也跟着刷新，Ctrl-C 结�
 
 ### 3.4 收尾
 
-主线判到终态后：`tree --status confirmed` 摘出结论，`render` 出两张图（主线视图、全图折叠已证伪），连同结论写进图所在目录的报告。
+主线判到终态后：`tree --status confirmed` 摘出结论，`close --reason "<一句话结论>"` 收尾，`render` 出两张图（主线视图、全图折叠已证伪），连同结论写进图所在目录的报告。收尾后 `check` 通过，`tree` 末尾显示「已收尾」与结论；同一问题再次出现时，`add` 新节点后 `switch` 过去即可接着查，收尾记录随之清除。
 
 ## 4. 图长什么样
 

@@ -145,6 +145,42 @@ class GraphTestCase(unittest.TestCase):
         # 主线已到终态且未换线：check 报错，提示换线或收尾
         self.cli("check", expect_ok=False)
 
+    # ---------- 收尾 ----------
+
+    def test_close_requires_terminal_main_line_and_reason(self):
+        self.cli("add", "H1", "--kind", "hypothesis", "--claim", "h1")
+        self.cli("close", "--reason", "结论", expect_ok=False)  # 没有主线
+        self.cli("switch", "--to", "H1", "--reason", "起点")
+        self.cli("close", "--reason", "结论", expect_ok=False)  # 主线仍待查
+        self.cli("set", "H1", "--status", "confirmed", "--evidence", "e")
+        self.cli("close", expect_ok=False)                      # 缺 --reason
+        self.cli("close", "--reason", "  ", expect_ok=False)    # reason 为空白
+        self.cli("close", "--reason", "H1 已证实")
+
+    def test_closed_graph_passes_check_and_tree_shows_conclusion(self):
+        self.cli("add", "H1", "--kind", "hypothesis", "--claim", "h1")
+        self.cli("switch", "--to", "H1", "--reason", "起点")
+        self.cli("set", "H1", "--status", "confirmed", "--evidence", "e")
+        _, out, _ = self.cli("check", expect_ok=False)
+        self.assertIn("R4 主线 H1 已到终态", out)
+        self.cli("close", "--reason", "H1 已证实，根因是连接池上限 10")
+        self.cli("check")
+        _, out, _ = self.cli("tree")
+        self.assertIn("已收尾", out)
+        self.assertIn("H1 已证实，根因是连接池上限 10", out)
+
+    def test_switch_after_close_restores_main_line_check(self):
+        self.cli("add", "H1", "--kind", "hypothesis", "--claim", "h1")
+        self.cli("switch", "--to", "H1", "--reason", "起点")
+        self.cli("set", "H1", "--status", "confirmed", "--evidence", "e")
+        self.cli("close", "--reason", "H1 已证实")
+        self.cli("add", "H2", "--kind", "hypothesis", "--claim", "同一现象再次出现")
+        self.cli("switch", "--to", "H2", "--reason", "现象复现，接着查")
+        self.assertNotIn("closed", graph.load(self.path))
+        self.cli("set", "H2", "--status", "refuted", "--evidence", "e2")
+        _, out, _ = self.cli("check", expect_ok=False)
+        self.assertIn("R4 主线 H2 已到终态", out)
+
     # ---------- 重开 ----------
 
     def test_reopen_refuted_requires_new_evidence(self):
@@ -319,7 +355,7 @@ class SkillSnippetTestCase(unittest.TestCase):
         return out[out.rindex("G=[") + 3:out.rindex("]")]
 
     def make_copies(self) -> tuple[str, str, str]:
-        """伪造 HOME：一份旧缓存，一份同步副本；同步副本的 mtime 置为 1970 年，与 claude.ai 同步下来的文件一致。"""
+        """伪造 HOME：一份过期缓存，一份同步副本；同步副本的 mtime 置为 1970 年，与 claude.ai 同步下来的文件一致。"""
         home = os.path.join(self.tmp, "home")
         stale = os.path.join(home, ".claude/plugins/cache/evidence-graph/evidence-graph/aaa")
         synced = os.path.join(home, ".claude/plugins/synced/acct/evidence-graph~g2")
@@ -352,7 +388,7 @@ class SkillSnippetTestCase(unittest.TestCase):
                           synced + "/skills/evidence-graph/scripts/graph.py"))
 
     def test_resolve_skips_trashed_copies(self):
-        """claude.ai 同步移除或更新插件后，旧副本留在 .trash 下，搜索时跳过。"""
+        """claude.ai 同步移除或更新插件后，被替换的副本留在 .trash 下，搜索时跳过。"""
         home = os.path.join(self.tmp, "trash-home")
         for root in (".claude/plugins/.trash/1-a/evidence-graph/skills/evidence-graph/scripts",
                      ".claude/skills/.trash/2-b/evidence-graph/scripts"):

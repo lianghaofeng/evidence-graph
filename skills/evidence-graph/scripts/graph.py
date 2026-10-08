@@ -2,7 +2,7 @@
 """evidence-graph 的图操作与校验脚本。
 
 一份排查用的证据图存成 YAML：节点是可判定的断言（事实 / 假设）或一次实验，边是依赖。
-脚本负责三件事：改图（init / add / set / switch）、读图（ready / tree）、
+脚本负责三件事：改图（init / add / set / switch / close）、读图（ready / tree）、
 出图（render），以及把五条硬规则做成确定性校验（check），让主会话每次改图后能机械地
 判断图有没有变形，不靠自觉。
 
@@ -228,8 +228,8 @@ def check(data: dict) -> list[str]:
     if main is not None:
         if main not in nodes:
             errs.append(f"R4 main_line 指向不存在的节点 {main}")
-        elif is_terminal(nodes[main]):
-            errs.append(f"R4 主线 {main} 已到终态（{STATUS_ZH[nodes[main]['status']]}），要么 switch 换线，要么收尾")
+        elif is_terminal(nodes[main]) and not data.get("closed"):
+            errs.append(f"R4 主线 {main} 已到终态（{STATUS_ZH[nodes[main]['status']]}），要么 switch 换线，要么 close 收尾")
     if switches:
         last_to = switches[-1].get("to")
         if main != last_to:
@@ -355,8 +355,33 @@ def cmd_switch(path: str, args) -> int:
         "reason": args.reason,
     })
     data["main_line"] = to
+    data.pop("closed", None)  # 换到新的待查节点即重新开工，收尾记录作废
     save(path, data)
     print(f"主线：{frm} -> {to}")
+    return _after_write(data)
+
+
+def cmd_close(path: str, args) -> int:
+    """收尾：主线判到终态后，在图上记下收尾时间与一句话结论。
+
+    为什么要有：R4 要求主线指向待查节点，用来拦住「主线到终态、忘了换线」；排查结束时
+    用 close 显式记一笔，check 据此放行，续图的会话也能从 tree 看出这次排查已经结束。
+    边界：没有主线或主线仍待查时拒绝；结论为空白时拒绝；重复执行时以最后一次的结论为准。
+    之后 switch 到新的待查节点会清掉收尾记录，恢复对主线的检查。
+    """
+    data = load(path)
+    nodes = data["nodes"]
+    reason = (args.reason or "").strip()
+    if not reason:
+        raise GraphError("收尾必须带 --reason（一句话结论）")
+    main = data.get("main_line")
+    if main is None or main not in nodes:
+        raise GraphError("图上没有主线：先 switch 设主线，判到终态之后再收尾")
+    if not is_terminal(nodes[main]):
+        raise GraphError(f"主线 {main} 仍是待查，判成 已证实 / 已证伪 / 已执行 / 受阻 之后才能收尾")
+    data["closed"] = {"at": now(), "reason": reason}
+    save(path, data)
+    print(f"已收尾：{reason}")
     return _after_write(data)
 
 
@@ -461,6 +486,9 @@ def cmd_tree(path: str, args) -> int:
     if data.get("switches"):
         s = data["switches"][-1]
         print(f"最近一次换线：{s.get('from')} -> {s.get('to')}，原因：{s.get('reason')}")
+    closed = data.get("closed")
+    if closed:
+        print(f"已收尾：{closed.get('at')}，结论：{closed.get('reason')}")
     return 0
 
 
@@ -624,6 +652,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--to", required=True)
     s.add_argument("--reason", required=True)
 
+    s = sp.add_parser("close", help="收尾：主线判到终态后记下一句话结论，check 放行已到终态的主线")
+    s.add_argument("--reason", required=True, help="一句话结论")
+
     s = sp.add_parser("ready", help="列出可开工的节点（待查且依赖全满足）")
     s.add_argument("--main", action="store_true", help="只看主线子树")
 
@@ -653,6 +684,7 @@ COMMANDS = {
     "add": cmd_add,
     "set": cmd_set,
     "switch": cmd_switch,
+    "close": cmd_close,
     "ready": cmd_ready,
     "check": cmd_check,
     "tree": cmd_tree,
