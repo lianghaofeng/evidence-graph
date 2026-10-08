@@ -15,6 +15,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -427,6 +428,9 @@ def main() -> int:
     ap.add_argument("--watch", action="store_true", help="盯着 YAML，改一次重出一次，Ctrl-C 结束")
     args = ap.parse_args()
     out = args.out or default_out(args.path)
+    if not shutil.which("dot"):
+        print("错误：" + graph.NO_GRAPHVIZ, file=sys.stderr)
+        return 1
 
     build(args.path, out, args.rankdir)
     print("已写 " + out)

@@ -37,6 +37,8 @@ STATUS_ZH = {
     "done": "已执行",
 }
 KIND_ZH = {"fact": "事实", "hypothesis": "假设", "experiment": "实验"}
+# 本机没有 graphviz 时的统一提示，render 与 viewer 共用
+NO_GRAPHVIZ = "没有 graphviz（dot）。macOS：brew install graphviz；Debian/Ubuntu：apt install graphviz"
 # 渲染用的填充色：绿证实、红证伪、黄待查、灰受阻、蓝已执行
 FILL = {
     "open": "#fff4cc",
@@ -564,7 +566,7 @@ def cmd_render(path: str, args) -> int:
         if args.format != "dot":
             raise GraphError("出 svg/png 只支持 --format dot")
         if not shutil.which("dot"):
-            raise GraphError("没有 graphviz（dot）。macOS：brew install graphviz；Debian/Ubuntu：apt install graphviz")
+            raise GraphError(NO_GRAPHVIZ)
         with tempfile.NamedTemporaryFile("w", suffix=".dot", delete=False, encoding="utf-8") as fh:
             fh.write(text)
             dot_path = fh.name

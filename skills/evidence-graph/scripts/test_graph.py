@@ -214,6 +214,20 @@ class GraphTestCase(unittest.TestCase):
         with open(svg, encoding="utf-8") as fh:
             self.assertIn("<svg", fh.read())
 
+    # ---------- HTML 视图 ----------
+
+    def test_viewer_reports_missing_graphviz(self):
+        """本机没有 dot 时，viewer 打印一行安装提示并以退出码 1 结束，不抛异常。"""
+        self.cli("add", "F1", "--kind", "fact", "--claim", "f1")
+        script = os.path.join(os.path.dirname(os.path.abspath(graph.__file__)), "viewer.py")
+        empty = os.path.join(self.tmp, "no-dot")
+        os.makedirs(empty)
+        r = subprocess.run([sys.executable, script, self.path], capture_output=True, text=True,
+                           env={**os.environ, "PATH": empty})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("没有 graphviz（dot）", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
     # ---------- HTML 视图自动刷新 ----------
 
     def test_refresh_warns_when_graphviz_missing(self):
