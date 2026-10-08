@@ -228,6 +228,26 @@ class GraphTestCase(unittest.TestCase):
         self.assertIn("没有 graphviz（dot）", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+    @unittest.skipUnless(shutil.which("dot"), "graphviz 未安装")
+    def test_viewer_without_main_line_shows_full_view(self):
+        """主线未设时 viewer 照常出 HTML：只含全图，主线按钮置灰。"""
+        self.cli("add", "F1", "--kind", "fact", "--claim", "f1")
+        self.cli("viewer")
+        with open(graph.viewer_path(self.path), encoding="utf-8") as fh:
+            page = fh.read()
+        self.assertIn("<svg", page)
+        self.assertIn('<button id="v-focus" disabled>主线未设</button>', page)
+
+    @unittest.skipUnless(shutil.which("dot"), "graphviz 未安装")
+    def test_viewer_with_main_line_enables_focus_view(self):
+        self.cli("add", "F1", "--kind", "fact", "--claim", "f1")
+        self.cli("switch", "--to", "F1", "--reason", "起点")
+        self.cli("viewer")
+        with open(graph.viewer_path(self.path), encoding="utf-8") as fh:
+            page = fh.read()
+        # 节点数含目标框
+        self.assertIn('<button id="v-focus">主线 F1（2 节点）</button>', page)
+
     # ---------- HTML 视图自动刷新 ----------
 
     def test_refresh_warns_when_graphviz_missing(self):

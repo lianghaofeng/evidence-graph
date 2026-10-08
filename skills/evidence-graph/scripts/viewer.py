@@ -106,6 +106,7 @@ TEMPLATE = r"""<!DOCTYPE html>
            border-radius: 4px; cursor: pointer; }
   button:hover { background: #ececec; }
   button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button:disabled { color: var(--dim); cursor: default; background: #fff; }
   #q { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; width: 200px; }
   #pct { min-width: 52px; text-align: center; color: var(--dim); font-variant-numeric: tabular-nums; }
   #hits { color: var(--dim); min-width: 74px; }
@@ -151,7 +152,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <body>
 <div id="bar">
   <button id="v-full" class="on">全图（__N_FULL__ 节点）</button>
-  <button id="v-focus">主线 __MAIN__（__N_FOCUS__ 节点）</button>
+  __FOCUS_BUTTON__
   <span class="sep"></span>
   <input id="q" type="search" placeholder="搜节点：F2 / 连接池 / DNS">
   <span id="hits"></span>
@@ -400,14 +401,21 @@ TEMPLATE = r"""<!DOCTYPE html>
 def build(yaml_path: str, out_path: str, rankdir: str) -> None:
     data = graph.load(yaml_path)
     full = _svg(data, focus=False, collapse=True, rankdir=rankdir)
-    # 主线视图节点少、多为一条链，固定用 TB
-    focus = _svg(data, focus=True, collapse=False, rankdir="TB")
+    main = data.get("main_line")
+    if main:
+        # 主线视图节点少、多为一条链，固定用 TB
+        focus = _svg(data, focus=True, collapse=False, rankdir="TB")
+        n_focus = focus.count('class="node"')
+        focus_button = f'<button id="v-focus">主线 {html.escape(str(main))}（{n_focus} 节点）</button>'
+    else:
+        # 主线未设时只出全图，主线按钮置灰；用 switch 设主线后重新生成即可切换
+        focus = ""
+        focus_button = '<button id="v-focus" disabled>主线未设</button>'
     payload = json.dumps(_payload(data), ensure_ascii=False).replace("</", "<\\/")
     page = (TEMPLATE
             .replace("__TITLE__", html.escape(graph._short(data.get("goal", "证据图"), 40)))
-            .replace("__MAIN__", html.escape(str(data.get("main_line") or "未设")))
+            .replace("__FOCUS_BUTTON__", focus_button)
             .replace("__N_FULL__", str(full.count('class="node"')))
-            .replace("__N_FOCUS__", str(focus.count('class="node"')))
             .replace("__SVG_FULL__", full)
             .replace("__SVG_FOCUS__", focus)
             .replace("__DATA__", payload))

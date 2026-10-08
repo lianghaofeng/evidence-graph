@@ -45,8 +45,8 @@ R=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 | 时机 | 做什么 |
 | --- | --- |
 | 开图 / 续图 | 有图就 `tree`；没有就 `init --goal "<一句话问题>"`。把上下文里已知的东西先立成节点，有证据的当场判掉，没证据的保持待查 |
+| 开图之后 | 跑一次 `viewer`，在图旁边出 `<图名>-viewer.html`。主线未设时页面只有全图，设好主线后的下一次自动生成带上主线视图。出过之后每次改图会自动重新生成它，开发者刷新浏览器就能看到最新内容，并可缩放、搜索、点节点看全文。只需跑这一次 |
 | 每轮开工前 | `tree` 再 `ready --main`。只在 ready 列出的节点上干活；主线没设就先 `switch --to` |
-| 主线设好之后 | 跑一次 `viewer`，在图旁边出 `<图名>-viewer.html`；主线未设时 `viewer` 报错退出。出过之后每次改图会自动重新生成它，开发者刷新浏览器就能看到最新内容，并可缩放、搜索、点节点看全文。只需跑这一次 |
 | 要查一件事 | `add <ID> --kind fact/hypothesis/experiment --claim "…" --criterion "…" [--depends-on …]`。假设依赖它的判定实验；实验必带 `--command` |
 | 拿到证据 | 立刻 `set <ID> --status confirmed/refuted/done --evidence "…"`；受阻用 `--status blocked --needs "…"` |
 | 想换方向 | 先把当前主线判到终态，再 `switch --to <ID> --reason "…"`。用户要求换方向也走这一步，把当前主线判 blocked 并写 needs |
