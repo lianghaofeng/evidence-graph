@@ -1,5 +1,7 @@
 # evidence-graph
 
+[![test](https://github.com/lianghaofeng/evidence-graph/actions/workflows/test.yml/badge.svg)](https://github.com/lianghaofeng/evidence-graph/actions/workflows/test.yml)
+
 排查问题时把「查明的事实、提出的假设、跑过的实验」立成一张落盘的证据图，脚本校验图是否变形，主会话每轮开工前先读图。目的是让模型基于已经查明的东西往下走：压缩上下文或换会话之后从图上接着查，当前主线判到终态之后才换方向。
 
 灵感来自 Anthropic 2026 年 9 月发布的 Fermat 大定理形式化：Prove2Me 平台用一张定理语句的有向无环图协调几十个代理，早期失败的原因正是「代理很快丢失项目状态、协作失效」。这里把「定理语句」换成「可判定的断言」，把 Lean 的机器判定换成「证据字段非空且格式合规」的脚本校验。
