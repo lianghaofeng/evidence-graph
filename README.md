@@ -27,8 +27,9 @@
 
 | 依赖 | 用途 | 是否必需 |
 | --- | --- | --- |
-| Python 3 + PyYAML | 脚本本体 | 必需，`pip3 install pyyaml` |
+| Python 3 + PyYAML | 脚本本体 | 必需。Debian/Ubuntu：`sudo apt install python3-yaml`；macOS（Homebrew Python）：`python3 -m pip install --user --break-system-packages pyyaml`；其他环境：`python3 -m pip install pyyaml` |
 | graphviz（`dot`） | HTML 视图、`render` 出 SVG / PNG | 要看图就必需，`brew install graphviz` / `apt install graphviz`；缺少时 `add` / `set` 会提示 HTML 未刷新 |
+| 中文字体（Linux） | `render` 出的 PNG / SVG 中显示中文 | 要出静态图就必需，例如 `sudo apt install fonts-noto-cjk`；缺少时中文显示为方框 |
 | rsvg-convert | SVG 转 PNG，贴到不渲染 SVG 的文档工具 | 可选 |
 
 ### 1.4 自检
