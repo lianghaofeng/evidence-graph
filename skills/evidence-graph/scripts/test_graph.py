@@ -317,6 +317,15 @@ class SkillSnippetTestCase(unittest.TestCase):
         self.assertIn(g, (stale + "/skills/evidence-graph/scripts/graph.py",
                           synced + "/skills/evidence-graph/scripts/graph.py"))
 
+    def test_resolve_skips_trashed_copies(self):
+        """claude.ai 同步移除或更新插件后，旧副本留在 .trash 下，搜索时跳过。"""
+        home = os.path.join(self.tmp, "trash-home")
+        for root in (".claude/plugins/.trash/1-a/evidence-graph/skills/evidence-graph/scripts",
+                     ".claude/skills/.trash/2-b/evidence-graph/scripts"):
+            os.makedirs(os.path.join(home, root))
+            open(os.path.join(home, root, "graph.py"), "w").close()
+        self.assertEqual(self.resolve(home, None), "")
+
     def test_resolve_reports_missing_install(self):
         home = os.path.join(self.tmp, "empty-home")
         os.makedirs(home)

@@ -20,12 +20,12 @@ description: Use only when the user explicitly invokes this skill for an investi
 ```bash
 G="${CLAUDE_SKILL_DIR}/scripts/graph.py"
 [ -f "$G" ] || G="$(claude plugin list --json 2>/dev/null | python3 -c 'import json, sys; print(next((p["installPath"] for p in json.load(sys.stdin) if p.get("id", "").startswith("evidence-graph@") and p.get("enabled")), ""))' 2>/dev/null)/skills/evidence-graph/scripts/graph.py"
-[ -f "$G" ] || G=$(find ~/.claude/plugins ~/.claude/skills -path '*/evidence-graph/scripts/graph.py' 2>/dev/null | head -1)
+[ -f "$G" ] || G=$(find ~/.claude/plugins ~/.claude/skills -name .trash -prune -o -path '*/evidence-graph/scripts/graph.py' -print 2>/dev/null | head -1)
 [ -f "$G" ] || echo "未找到 graph.py，确认 evidence-graph 插件已安装"
 Y=<图的路径，见「图的位置」>
 ```
 
-`G` 取 skill 所在目录；占位符未被替换时，向 Claude Code 查询已启用的 evidence-graph 插件的安装目录；两者都拿不到时按文件名搜索。不写某台机器上的固定路径。
+`G` 取 skill 所在目录；占位符未被替换时，向 Claude Code 查询已启用的 evidence-graph 插件的安装目录；两者都拿不到时按文件名搜索，跳过 `.trash` 下的旧副本。不写某台机器上的固定路径。
 
 ## 图的位置
 
