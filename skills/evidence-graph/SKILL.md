@@ -30,11 +30,12 @@ Y=<图的路径，见「图的位置」>
 
 - 项目说明（CLAUDE.md 等）规定了排查文档的位置时，图放在规定的位置。
 - 没有规定时，图放在仓库根目录 `docs/evidence-graph/<日期>-<主题短名>-evidence-graph.yaml`，主题短名用小写字母、数字和连字符。首次建这个目录时告诉用户：该目录未被 git 忽略，是否提交由用户决定。
-- 续图时先查项目规定的位置，再用下面的命令在仓库内按后缀搜索。命令跟随软链，跳过 `.git` 与 `node_modules`，按真实路径去重。找到多张时列出来由用户选。
+- 续图时先查项目规定的位置，再用下面的命令按后缀搜索。搜索范围是当前仓库及它的全部 git worktree；命令跟随软链，跳过 `.git` 与 `node_modules`，按真实路径去重。找到多张时列出来由用户选。
 
 ```bash
 R=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-find -L "$R" \( -name .git -o -name node_modules \) -prune -o -name '*-evidence-graph.yaml' -print 2>/dev/null \
+{ echo "$R"; git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p'; } \
+  | while IFS= read -r d; do find -L "$d" \( -name .git -o -name node_modules \) -prune -o -name '*-evidence-graph.yaml' -print 2>/dev/null; done \
   | python3 -c 'import os, sys; sys.stdout.write("".join(p + "\n" for p in sorted({os.path.realpath(l.strip()) for l in sys.stdin if l.strip()})))'
 ```
 

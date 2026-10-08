@@ -102,7 +102,7 @@ python3 $G $Y viewer --watch         # 手改 YAML 也跟着刷新，Ctrl-C 结�
 
 ### 3.3 压缩或换会话之后
 
-新会话里再输一次 `/evidence-graph`，模型先按项目约定的位置找图，再在仓库内按 `-evidence-graph.yaml` 后缀搜索，读 `tree`，从图上的主线接着走。压缩摘要与图冲突时以图为准，因为图上的结论带证据。
+新会话里再输一次 `/evidence-graph`，模型先按项目约定的位置找图，再在当前仓库及它的全部 git worktree 内按 `-evidence-graph.yaml` 后缀搜索，读 `tree`，从图上的主线接着走。压缩摘要与图冲突时以图为准，因为图上的结论带证据。
 
 ### 3.4 收尾
 
