@@ -53,7 +53,7 @@ R=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 | 每次改图后 | `check`。不通过就先修图，修好才能继续 |
 | 派子代理 | 把节点的 claim 与 criterion 原样给它，让它只回报证据。写图的只有主会话 |
 | 压缩 / 换会话后 | 第一件事 `tree`。摘要与图冲突时以图为准，图上的结论带证据 |
-| 收尾 | `tree --status confirmed` 摘出结论；`render --focus --out <日期>-graph-focus.png` 与 `render --collapse-refuted --out <日期>-graph.png` 出静态图，写进图所在目录的报告。HTML 视图随改图自动重新生成，不用另外刷 |
+| 收尾 | `tree --status confirmed` 摘出结论；`render --focus --out <日期>-<主题短名>-graph-focus.png` 与 `render --collapse-refuted --out <日期>-<主题短名>-graph.png` 出静态图，写进图所在目录的报告。HTML 视图随改图自动重新生成，不用另外刷 |
 
 节点编号约定：F 事实、H 假设、E 实验，加序号。ID 一旦立了不改。
 
